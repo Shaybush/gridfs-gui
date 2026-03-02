@@ -39,7 +39,7 @@ export function Pagination(props: PaginationProps) {
             value={String(currentLimit)}
             onValueChange={(val) => onPageSizeChange(Number(val))}
           >
-            <SelectTrigger size="sm" className="w-16">
+            <SelectTrigger size="sm" className="w-20">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

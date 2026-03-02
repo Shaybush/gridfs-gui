@@ -25,6 +25,7 @@ import { Badge } from '@src/components/ui/badge'
 import { formatDate } from '@src/common/utils/format-date'
 import { formatFileSize } from '@src/common/utils/format-file-size'
 import { FilePreview } from '@src/components/files/FilePreview'
+import { FullscreenPreview } from '@src/components/files/FullscreenPreview'
 import { CopyMoveDialog } from '@src/components/files/CopyMoveDialog'
 import type { BucketInfo } from '@src/types/bucket'
 import type { FileInfo } from '@src/types/file'
@@ -56,10 +57,31 @@ interface FileDetailProps {
   onMove?: (fileId: string, targetBucket: string) => Promise<void>
   buckets?: BucketInfo[]
   currentBucket?: string
+  // Fullscreen navigation support
+  files?: FileInfo[]
+  onNavigate?: (file: FileInfo) => void
+  getPreviewUrl?: (fileId: string) => string
+  getDownloadUrl?: (fileId: string) => string
 }
 
 export function FileDetail(props: FileDetailProps) {
-  const { file, previewUrl, downloadUrl, onClose, onDelete, onRename, onUpdateMetadata, onCopy, onMove, buckets = [], currentBucket = '' } = props
+  const {
+    file,
+    previewUrl,
+    downloadUrl,
+    onClose,
+    onDelete,
+    onRename,
+    onUpdateMetadata,
+    onCopy,
+    onMove,
+    buckets = [],
+    currentBucket = '',
+    files = [],
+    onNavigate,
+    getPreviewUrl,
+    getDownloadUrl,
+  } = props
 
   const [isDeleting, setIsDeleting] = useState(false)
   const [copyMoveDialog, setCopyMoveDialog] = useState<{
@@ -67,6 +89,9 @@ export function FileDetail(props: FileDetailProps) {
     mode: 'copy' | 'move'
   }>({ open: false, mode: 'copy' })
   const [isCopyMoveLoading, setIsCopyMoveLoading] = useState(false)
+
+  // Fullscreen modal visibility
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const handleCopyMoveConfirm = async (targetBucket: string) => {
     if (!file) return
@@ -109,7 +134,16 @@ export function FileDetail(props: FileDetailProps) {
     setIsEditingMetadata(false)
     setMetadataValue('')
     setMetadataError(null)
+    // Do NOT reset isFullscreen here — when navigating in fullscreen the file
+    // prop changes, but we want to stay in fullscreen mode.
   }, [file?.id])
+
+  // Close fullscreen when the sheet closes
+  useEffect(() => {
+    if (!file) {
+      setIsFullscreen(false)
+    }
+  }, [file])
 
   // Auto-focus rename input
   useEffect(() => {
@@ -218,11 +252,21 @@ export function FileDetail(props: FileDetailProps) {
   const chunkCount = file && file.chunk_size > 0 ? Math.ceil(file.length / file.chunk_size) : 0
   const hasMetadata = Boolean(file?.metadata && Object.keys(file.metadata).length > 0)
 
+  // Index of the currently selected file in the files array
+  const currentIndex = file ? files.findIndex((f) => f.id === file.id) : -1
+
+  // Whether fullscreen navigation is available
+  const canFullscreen = Boolean(file && getPreviewUrl && getDownloadUrl)
+
+  // Safe wrappers that always provide a string (never undefined)
+  const safeGetPreviewUrl = (fileId: string) => getPreviewUrl?.(fileId) ?? ''
+  const safeGetDownloadUrl = (fileId: string) => getDownloadUrl?.(fileId) ?? ''
+
   return (
     <>
     <Sheet open={file !== null} onOpenChange={(open) => { if (!open) onClose() }}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-lg">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="px-6 pb-4">
           {isRenamingTitle ? (
             <div className="flex items-center gap-1.5 pr-6">
               <Input
@@ -240,7 +284,7 @@ export function FileDetail(props: FileDetailProps) {
                 disabled={isSavingRename}
                 aria-label="Save rename"
                 title="Save"
-                className="shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                className="shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950"
               >
                 {isSavingRename ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -282,9 +326,14 @@ export function FileDetail(props: FileDetailProps) {
         </SheetHeader>
 
         {file && (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 px-6">
             {/* Preview */}
-            <FilePreview fileInfo={file} previewUrl={previewUrl} downloadUrl={downloadUrl} />
+            <FilePreview
+              fileInfo={file}
+              previewUrl={previewUrl}
+              downloadUrl={downloadUrl}
+              onExpandClick={canFullscreen ? () => setIsFullscreen(true) : undefined}
+            />
 
             <Separator />
 
@@ -386,7 +435,7 @@ export function FileDetail(props: FileDetailProps) {
             <Separator />
 
             {/* Action buttons */}
-            <div className="flex flex-wrap gap-2 pb-4">
+            <div className="flex flex-wrap gap-2 pb-6">
               <Button asChild className="flex-1">
                 <a href={downloadUrl} download={file.filename}>
                   <Download className="mr-1.5 size-4" />
@@ -467,6 +516,24 @@ export function FileDetail(props: FileDetailProps) {
       onCancel={handleCopyMoveCancel}
       isLoading={isCopyMoveLoading}
     />
+
+    {/* Fullscreen preview */}
+    {canFullscreen && file && (
+      <FullscreenPreview
+        open={isFullscreen}
+        onOpenChange={setIsFullscreen}
+        fileInfo={file}
+        previewUrl={safeGetPreviewUrl(file.id)}
+        downloadUrl={safeGetDownloadUrl(file.id)}
+        files={files}
+        currentIndex={currentIndex >= 0 ? currentIndex : 0}
+        onNavigate={(navigatedFile) => {
+          onNavigate?.(navigatedFile)
+        }}
+        getPreviewUrl={safeGetPreviewUrl}
+        getDownloadUrl={safeGetDownloadUrl}
+      />
+    )}
     </>
   )
 }

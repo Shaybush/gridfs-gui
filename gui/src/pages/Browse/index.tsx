@@ -553,6 +553,10 @@ export default function BrowsePage() {
         onMove={handleMove}
         buckets={buckets}
         currentBucket={selectedBucket ?? ''}
+        files={files}
+        onNavigate={handleFileClick}
+        getPreviewUrl={getPreviewUrl}
+        getDownloadUrl={getDownloadUrl}
       />
     </div>
   )

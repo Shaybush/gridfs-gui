@@ -1,0 +1,88 @@
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ============================================================
+# Node / Frontend
+# ============================================================
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+.vite/
+*.local
+
+# ============================================================
+# IDE
+# ============================================================
+# VS Code — keep .vscode/settings.json if desired
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================
+# Project Data
+# ============================================================
+# Persistent connection store — contains encrypted secrets
+data/
+
+# ============================================================
+# Environment Files
+# ============================================================
+.env
+.env.local
+.env.*.local
+# Keep the example file
+!.env.example
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============================================================
+# Docker
+# ============================================================
+# Keep Dockerfiles, ignore generated artifacts
+*.tar

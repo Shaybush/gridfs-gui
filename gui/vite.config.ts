@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react-swc';
 import { defineConfig } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
-const rootDir = path.join(__dirname, '../../');
+const rootDir = path.join(__dirname, '../');
 
 export default defineConfig(({ mode }) => ({
   root: `${process.cwd()}/src`, // <--- defaults to process.cwd(). where the index.html is located.

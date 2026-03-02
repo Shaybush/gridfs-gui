@@ -481,7 +481,7 @@ export function FileTable(props: FileTableProps) {
                         disabled={savingId === file.id}
                         aria-label="Save rename"
                         title="Save"
-                        className="shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950"
                       >
                         {savingId === file.id ? (
                           <Loader2 className="size-3.5 animate-spin" />

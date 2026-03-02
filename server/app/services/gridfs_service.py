@@ -22,6 +22,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorGridFSBucket
 from app.models.bucket import BucketInfo, BucketStats
 from app.models.file import FileCopyMoveResponse, FileInfo, FileListResponse, FileUploadResponse
 from app.services.connection_pool import ConnectionPool
+from app.services.content_type import detect_content_type
 
 logger = logging.getLogger(__name__)
 
@@ -65,11 +66,16 @@ class GridFSService:
     @staticmethod
     def _doc_to_file_info(doc: dict) -> FileInfo:
         """Convert a raw MongoDB ``.files`` document to a FileInfo model."""
+        # content_type may live at the top-level (legacy) or inside metadata
+        meta = doc.get("metadata") or {}
+        content_type = doc.get("contentType") or meta.get("contentType")
+        if not content_type:
+            content_type = detect_content_type(doc.get("filename", ""))
         return FileInfo(
             id=str(doc["_id"]),
             filename=doc.get("filename", ""),
             length=doc.get("length", 0),
-            content_type=doc.get("contentType"),
+            content_type=content_type,
             upload_date=doc.get("uploadDate", datetime.now(timezone.utc)),
             metadata=doc.get("metadata"),
             chunk_size=doc.get("chunkSize", 0),
@@ -372,10 +378,13 @@ class GridFSService:
         if metadata:
             kwargs["metadata"] = metadata
 
+        # Store content_type inside metadata (Motor no longer accepts it as a top-level param)
+        if content_type:
+            kwargs.setdefault("metadata", {})["contentType"] = content_type
+
         # Open an upload stream
         upload_stream = bucket.open_upload_stream(
             filename,
-            content_type=content_type,
             **kwargs,
         )
 
@@ -444,9 +453,10 @@ class GridFSService:
         if doc is None:
             raise FileNotFoundError(f"File '{file_id}' not found in bucket '{bucket_name}'")
 
+        meta = doc.get("metadata") or {}
         file_info = {
             "filename": doc.get("filename", "download"),
-            "content_type": doc.get("contentType", "application/octet-stream"),
+            "content_type": doc.get("contentType") or meta.get("contentType") or detect_content_type(doc.get("filename", "")),
             "length": doc.get("length", 0),
         }
 
@@ -507,9 +517,10 @@ class GridFSService:
         if doc is None:
             raise FileNotFoundError(f"File '{file_id}' not found in bucket '{bucket_name}'")
 
+        meta = doc.get("metadata") or {}
         file_info = {
             "filename": doc.get("filename", "download"),
-            "content_type": doc.get("contentType", "application/octet-stream"),
+            "content_type": doc.get("contentType") or meta.get("contentType") or detect_content_type(doc.get("filename", "")),
             "length": doc.get("length", 0),
         }
 
@@ -693,9 +704,12 @@ class GridFSService:
         if metadata:
             upload_kwargs["metadata"] = metadata
 
+        # Store content_type inside metadata (Motor no longer accepts it as a top-level param)
+        if content_type:
+            upload_kwargs.setdefault("metadata", {})["contentType"] = content_type
+
         upload_stream = target_bucket_handle.open_upload_stream(
             filename,
-            content_type=content_type,
             **upload_kwargs,
         )
 
