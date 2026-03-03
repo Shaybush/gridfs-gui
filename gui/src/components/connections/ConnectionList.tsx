@@ -6,6 +6,7 @@ import type { Connection, ConnectionUpdate, TestConnectionResult } from '@src/ty
 interface ConnectionListProps {
   connections: Connection[]
   isLoading: boolean
+  testResults: Record<string, TestConnectionResult>
   onAddClick: () => void
   onUpdate: (id: string, data: ConnectionUpdate) => Promise<Connection>
   onDelete: (id: string) => Promise<void>
@@ -13,7 +14,7 @@ interface ConnectionListProps {
 }
 
 export function ConnectionList(props: ConnectionListProps) {
-  const { connections, isLoading, onAddClick, onUpdate, onDelete, onTest } = props
+  const { connections, isLoading, testResults, onAddClick, onUpdate, onDelete, onTest } = props
 
   if (isLoading) {
     return (
@@ -48,6 +49,7 @@ export function ConnectionList(props: ConnectionListProps) {
         <ConnectionCard
           key={conn.id}
           connection={conn}
+          initialTestResult={testResults[conn.id]}
           onUpdate={onUpdate}
           onDelete={onDelete}
           onTest={onTest}

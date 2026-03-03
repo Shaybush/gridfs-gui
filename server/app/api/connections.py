@@ -6,6 +6,7 @@ router.  They expose CRUD operations for stored MongoDB connections as
 well as utilities for testing connectivity and listing databases.
 """
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -125,6 +126,41 @@ async def delete_connection(
         )
 
     return {"detail": "Connection deleted"}
+
+
+@router.post(
+    "/test-all",
+    summary="Test all connections",
+)
+async def test_all_connections(
+    store: ConnectionStore = Depends(get_connection_store),
+    pool: ConnectionPool = Depends(get_connection_pool),
+) -> dict:
+    """Test all stored connections in parallel.
+
+    Returns ``{"results": {"<conn_id>": {"ok": bool, "latency_ms": float}, ...}}``
+    """
+    connections = await store.list_all()
+    if not connections:
+        return {"results": {}}
+
+    async def _test(conn_id: str) -> tuple[str, dict]:
+        result = await pool.test_connection(conn_id)
+        return conn_id, result
+
+    outcomes = await asyncio.gather(
+        *(_test(c.id) for c in connections),
+        return_exceptions=True,
+    )
+
+    results = {}
+    for outcome in outcomes:
+        if isinstance(outcome, Exception):
+            continue
+        conn_id, result = outcome
+        results[conn_id] = result
+
+    return {"results": results}
 
 
 @router.post(

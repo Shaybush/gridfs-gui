@@ -8,7 +8,7 @@ import { useConnections } from '@src/hooks/useConnections'
 
 export default function ConnectionsPage() {
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const { connections, isLoading, createConnection, updateConnection, deleteConnection, testConnection } =
+  const { connections, isLoading, testResults, createConnection, updateConnection, deleteConnection, testConnection } =
     useConnections()
 
   return (
@@ -31,6 +31,7 @@ export default function ConnectionsPage() {
       <ConnectionList
         connections={connections}
         isLoading={isLoading}
+        testResults={testResults}
         onAddClick={() => setIsAddOpen(true)}
         onUpdate={updateConnection}
         onDelete={deleteConnection}

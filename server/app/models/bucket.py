@@ -4,6 +4,7 @@ Pydantic models for GridFS bucket management.
 BucketInfo     — summary representation of a bucket (name, file count, total size).
 BucketStats    — detailed statistics including average file size.
 BucketCreate   — input model for creating a new (logical) bucket.
+BucketRename   — input model for renaming an existing bucket.
 """
 
 from pydantic import BaseModel, Field
@@ -35,4 +36,16 @@ class BucketCreate(BaseModel):
         max_length=128,
         pattern=r"^[a-zA-Z0-9_\-]+$",
         description="Bucket name (alphanumeric, underscores, hyphens only)",
+    )
+
+
+class BucketRename(BaseModel):
+    """Input model for renaming a GridFS bucket."""
+
+    new_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-zA-Z0-9_\-]+$",
+        description="New bucket name (alphanumeric, underscores, hyphens only)",
     )

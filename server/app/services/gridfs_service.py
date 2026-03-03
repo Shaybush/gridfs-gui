@@ -63,6 +63,47 @@ class GridFSService:
         db = self._get_db(conn_id, db_name)
         return AsyncIOMotorGridFSBucket(db, bucket_name=bucket_name)
 
+    async def _ensure_bucket_exists(
+        self,
+        conn_id: str,
+        db_name: str,
+        bucket_name: str,
+    ) -> AsyncIOMotorDatabase:
+        """Return the database handle after verifying the bucket exists.
+
+        Raises KeyError if ``<bucket_name>.files`` is not found.
+        """
+        db = self._get_db(conn_id, db_name)
+        collection_names = await db.list_collection_names()
+        if f"{bucket_name}.files" not in collection_names:
+            raise KeyError(f"Bucket '{bucket_name}' not found in database '{db_name}'")
+        return db
+
+    async def _get_bucket_file_stats(
+        self,
+        db: AsyncIOMotorDatabase,
+        bucket_name: str,
+    ) -> dict[str, int]:
+        """Return ``{"count": N, "total_size": N}`` for a bucket's files collection."""
+        files_col = db[f"{bucket_name}.files"]
+        pipeline = [
+            {"$group": {"_id": None, "count": {"$sum": 1}, "total_size": {"$sum": "$length"}}},
+        ]
+        result = await files_col.aggregate(pipeline).to_list(1)
+        return result[0] if result else {"count": 0, "total_size": 0}
+
+    @staticmethod
+    def _deduplicate_filename(filename: str, seen_names: dict[str, int]) -> str:
+        """Return a unique filename by appending a numeric suffix on collision."""
+        if filename in seen_names:
+            seen_names[filename] += 1
+            name_parts = filename.rsplit(".", 1)
+            if len(name_parts) == 2:
+                return f"{name_parts[0]}_{seen_names[filename]}.{name_parts[1]}"
+            return f"{filename}_{seen_names[filename]}"
+        seen_names[filename] = 0
+        return filename
+
     @staticmethod
     def _doc_to_file_info(doc: dict) -> FileInfo:
         """Convert a raw MongoDB ``.files`` document to a FileInfo model."""
@@ -107,13 +148,7 @@ class GridFSService:
 
         buckets: list[BucketInfo] = []
         for name in bucket_names:
-            files_col = db[f"{name}.files"]
-            pipeline = [
-                {"$group": {"_id": None, "count": {"$sum": 1}, "total_size": {"$sum": "$length"}}},
-            ]
-            result = await files_col.aggregate(pipeline).to_list(1)
-            stats = result[0] if result else {"count": 0, "total_size": 0}
-
+            stats = await self._get_bucket_file_stats(db, name)
             buckets.append(
                 BucketInfo(name=name, file_count=stats["count"], total_size=stats["total_size"])
             )
@@ -128,16 +163,9 @@ class GridFSService:
     ) -> BucketStats:
         """Return detailed statistics for a single GridFS bucket.
 
-        Raises
-        ------
-        KeyError
-            If the bucket does not exist (no ``<bucket>.files`` collection).
+        Raises KeyError if the bucket does not exist.
         """
-        db = self._get_db(conn_id, db_name)
-        collection_names = await db.list_collection_names()
-
-        if f"{bucket_name}.files" not in collection_names:
-            raise KeyError(f"Bucket '{bucket_name}' not found in database '{db_name}'")
+        db = await self._ensure_bucket_exists(conn_id, db_name, bucket_name)
 
         files_col = db[f"{bucket_name}.files"]
         pipeline = [
@@ -205,6 +233,116 @@ class GridFSService:
 
         logger.info("Created bucket '%s' in db '%s' for connection %s", bucket_name, db_name, conn_id)
         return BucketInfo(name=bucket_name, file_count=0, total_size=0)
+
+    async def delete_bucket(
+        self,
+        conn_id: str,
+        db_name: str,
+        bucket_name: str,
+    ) -> None:
+        """Delete a GridFS bucket by dropping its ``.files`` and ``.chunks`` collections.
+
+        Raises KeyError if the bucket does not exist.
+        """
+        db = await self._ensure_bucket_exists(conn_id, db_name, bucket_name)
+
+        await db.drop_collection(f"{bucket_name}.files")
+        await db.drop_collection(f"{bucket_name}.chunks")
+
+        logger.info(
+            "Deleted bucket '%s' from db '%s' for connection %s",
+            bucket_name, db_name, conn_id,
+        )
+
+    async def rename_bucket(
+        self,
+        conn_id: str,
+        db_name: str,
+        bucket_name: str,
+        new_name: str,
+    ) -> BucketInfo:
+        """Rename a GridFS bucket via the MongoDB ``renameCollection`` command.
+
+        Raises KeyError if the source bucket does not exist, or ValueError
+        if the target name is already taken.
+        """
+        db = await self._ensure_bucket_exists(conn_id, db_name, bucket_name)
+
+        collection_names = await db.list_collection_names()
+        if f"{new_name}.files" in collection_names:
+            raise ValueError(f"Bucket '{new_name}' already exists in database '{db_name}'")
+
+        admin_db = self._pool.get_client(conn_id).admin
+        await admin_db.command(
+            "renameCollection",
+            f"{db_name}.{bucket_name}.files",
+            to=f"{db_name}.{new_name}.files",
+        )
+        await admin_db.command(
+            "renameCollection",
+            f"{db_name}.{bucket_name}.chunks",
+            to=f"{db_name}.{new_name}.chunks",
+        )
+
+        stats = await self._get_bucket_file_stats(db, new_name)
+
+        logger.info(
+            "Renamed bucket '%s' to '%s' in db '%s' for connection %s",
+            bucket_name, new_name, db_name, conn_id,
+        )
+
+        return BucketInfo(name=new_name, file_count=stats["count"], total_size=stats["total_size"])
+
+    async def export_bucket_zip(
+        self,
+        conn_id: str,
+        db_name: str,
+        bucket_name: str,
+    ) -> bytes:
+        """Export all files in a GridFS bucket as an in-memory ZIP archive.
+
+        Raises KeyError if the bucket does not exist, or FileNotFoundError
+        if the bucket has no files.
+        """
+        db = await self._ensure_bucket_exists(conn_id, db_name, bucket_name)
+
+        file_docs = await db[f"{bucket_name}.files"].find({}).to_list(None)
+        if not file_docs:
+            raise FileNotFoundError(f"Bucket '{bucket_name}' has no files to export")
+
+        bucket = self._get_bucket(conn_id, db_name, bucket_name)
+        buf = io.BytesIO()
+        seen_names: dict[str, int] = {}
+
+        with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for doc in file_docs:
+                file_id = doc["_id"]
+                filename = self._deduplicate_filename(
+                    doc.get("filename", str(file_id)), seen_names,
+                )
+
+                try:
+                    grid_out = await bucket.open_download_stream(file_id)
+                    file_buf = bytearray()
+                    while True:
+                        chunk = await grid_out.read(256 * 1024)
+                        if not chunk:
+                            break
+                        file_buf.extend(chunk)
+                    zf.writestr(filename, bytes(file_buf))
+                except Exception as exc:
+                    logger.warning(
+                        "Skipping file '%s' (id=%s) during bucket export: %s",
+                        filename, file_id, exc,
+                    )
+
+        logger.info(
+            "Exported bucket '%s' from db '%s': %d files archived",
+            bucket_name, db_name, len(file_docs),
+        )
+
+        buf.seek(0)
+        return buf.read()
 
     # ------------------------------------------------------------------
     # File listing
@@ -902,18 +1040,9 @@ class GridFSService:
                     stream, file_info = await self.download_file(
                         conn_id, db_name, bucket_name, file_id,
                     )
-                    filename = file_info["filename"]
-
-                    # Deduplicate filenames within the archive
-                    if filename in seen_names:
-                        seen_names[filename] += 1
-                        name_parts = filename.rsplit(".", 1)
-                        if len(name_parts) == 2:
-                            filename = f"{name_parts[0]}_{seen_names[filename]}.{name_parts[1]}"
-                        else:
-                            filename = f"{filename}_{seen_names[filename]}"
-                    else:
-                        seen_names[filename] = 0
+                    filename = self._deduplicate_filename(
+                        file_info["filename"], seen_names,
+                    )
 
                     # Read all chunks into a buffer for this file
                     file_buf = bytearray()

@@ -13,6 +13,7 @@ Base: `/api/v1`
 - `POST /` - Create connection (body: `ConnectionCreate`) -> `ConnectionResponse` (201)
 - `PUT /{conn_id}` - Update connection (body: `ConnectionUpdate`) -> `ConnectionResponse`; 404 if not found
 - `DELETE /{conn_id}` - Delete connection + disconnect from pool -> `{"detail": "Connection deleted"}`; 404 if not found
+- `POST /test-all` - Test all connections in parallel -> `{"results": {"<conn_id>": {"ok": bool, "latency_ms": float}, ...}}`
 - `POST /{conn_id}/test` - Test MongoDB connectivity -> `{"ok": bool, "latency_ms": float}` or `{"ok": false, "error": str}`
 - `GET /{conn_id}/databases` - List databases (auto-connects) -> `{"databases": [str]}`
 
@@ -26,11 +27,15 @@ Auto-connects if not already connected. All require valid conn_id + db_name.
 - `GET /` - List all GridFS buckets (discovers via .files collections) -> `list[BucketInfo]`
 - `POST /` - Create bucket (body: `BucketCreate` {name}) -> `BucketInfo` (201); 409 if exists
 - `GET /{bucket_name}/stats` - Bucket stats -> `BucketStats`; 404 if not found
+- `DELETE /{bucket_name}` - Delete bucket (drops .files + .chunks); requires `?confirm=true` -> 204; 400 if no confirm; 404 if not found
+- `PUT /{bucket_name}` - Rename bucket (body: `BucketRename` {new_name}) -> `BucketInfo`; 409 if target exists; 404 if not found
+- `POST /{bucket_name}/export` - Export all files as ZIP -> binary (application/zip, Content-Disposition: attachment); 404 if not found or empty
 
 ### Models
 - `BucketInfo`: name, file_count, total_size
 - `BucketStats`: name, file_count, total_size, avg_file_size
 - `BucketCreate`: name (alphanumeric/underscore/hyphen, 1-128 chars)
+- `BucketRename`: new_name (alphanumeric/underscore/hyphen, 1-128 chars)
 
 ## Files (`/api/v1/connections/{conn_id}/databases/{db_name}/buckets/{bucket_name}/files`)
 Auto-connects if not already connected. All require valid conn_id + db_name + bucket_name.

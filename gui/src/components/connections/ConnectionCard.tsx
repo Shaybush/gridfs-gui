@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -38,13 +38,14 @@ type TestStatus = 'idle' | 'testing' | 'passed' | 'failed'
 
 interface ConnectionCardProps {
   connection: Connection
+  initialTestResult?: TestConnectionResult
   onUpdate: (id: string, data: ConnectionUpdate) => Promise<Connection>
   onDelete: (id: string) => Promise<void>
   onTest: (id: string) => Promise<TestConnectionResult>
 }
 
 export function ConnectionCard(props: ConnectionCardProps) {
-  const { connection, onUpdate, onDelete, onTest } = props
+  const { connection, initialTestResult, onUpdate, onDelete, onTest } = props
 
   const navigate = useNavigate()
   const { activeConnection, setActiveConnection } = useActiveConnection()
@@ -56,6 +57,18 @@ export function ConnectionCard(props: ConnectionCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
 
   const isActive = activeConnection?.id === connection.id
+
+  // Seed local state from batch auto-test results
+  useEffect(() => {
+    if (!initialTestResult) return
+    if (initialTestResult.ok) {
+      setTestStatus('passed')
+      setTestLatency(initialTestResult.latency_ms ?? null)
+    } else {
+      setTestStatus('failed')
+      setTestLatency(null)
+    }
+  }, [initialTestResult])
 
   const handleTest = async () => {
     setTestStatus('testing')

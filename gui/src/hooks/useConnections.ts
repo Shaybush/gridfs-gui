@@ -8,17 +8,20 @@ interface UseConnectionsReturn {
   connections: Connection[]
   isLoading: boolean
   error: string | null
+  testResults: Record<string, TestConnectionResult>
   fetchConnections: () => Promise<void>
   createConnection: (data: ConnectionCreate) => Promise<Connection>
   updateConnection: (id: string, data: ConnectionUpdate) => Promise<Connection>
   deleteConnection: (id: string) => Promise<void>
   testConnection: (id: string) => Promise<TestConnectionResult>
+  testAllConnections: () => Promise<void>
 }
 
 export function useConnections(): UseConnectionsReturn {
   const [connections, setConnections] = useState<Connection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, TestConnectionResult>>({})
 
   const fetchConnections = useCallback(async () => {
     setIsLoading(true)
@@ -68,18 +71,30 @@ export function useConnections(): UseConnectionsReturn {
     return promise
   }, [])
 
+  const testAllConnections = useCallback(async () => {
+    try {
+      const { promise } = httpClient.post<{ results: Record<string, TestConnectionResult> }>(`${BASE}/test-all`)
+      const data = await promise
+      setTestResults(data.results)
+    } catch {
+      // Silently fail — individual cards stay in idle state
+    }
+  }, [])
+
   useEffect(() => {
-    fetchConnections()
-  }, [fetchConnections])
+    fetchConnections().then(() => testAllConnections())
+  }, [fetchConnections, testAllConnections])
 
   return {
     connections,
     isLoading,
     error,
+    testResults,
     fetchConnections,
     createConnection,
     updateConnection,
     deleteConnection,
     testConnection,
+    testAllConnections,
   }
 }
