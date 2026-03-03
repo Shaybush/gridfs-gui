@@ -1,8 +1,9 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import {
   Database,
   FolderOpen,
+  Info,
   PanelLeft,
   PanelLeftClose,
 } from 'lucide-react'
@@ -10,6 +11,7 @@ import { Badge } from '@src/components/ui/badge'
 import { Button } from '@src/components/ui/button'
 import { Separator } from '@src/components/ui/separator'
 import { Tooltip } from '@src/components/ui/tooltip/'
+import useClickAway from '@src/hooks/useClickAway'
 import { cn } from '@src/lib/utils'
 import { useAppShell } from './AppShellContext'
 
@@ -30,6 +32,8 @@ export function Sidebar(props: SidebarProps) {
   const { activeConnectionId, activeConnectionName } = props
   const { isCollapsed, toggleCollapsed } = useAppShell()
   const location = useLocation()
+  const [infoOpen, setInfoOpen] = useState(false)
+  const infoRef = useClickAway(() => setInfoOpen(false))
 
   const navItems: NavItem[] = [
     {
@@ -66,15 +70,42 @@ export function Sidebar(props: SidebarProps) {
         {/* Logo / App name */}
         <div
           className={cn(
-            'flex h-14 items-center border-b border-[var(--sidebar-border)] px-3',
-            isCollapsed ? 'justify-center' : 'justify-start gap-2.5',
+            'relative flex h-14 items-center border-b border-[var(--sidebar-border)] px-3',
+            isCollapsed ? 'justify-center' : 'justify-between',
           )}
         >
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-primary)]">
-            <Database className="size-4 text-[var(--sidebar-primary-foreground)]" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--sidebar-primary)]">
+              <Database className="size-4 text-[var(--sidebar-primary-foreground)]" />
+            </div>
+            {!isCollapsed && (
+              <span className="text-sm font-semibold tracking-tight">GridFS GUI</span>
+            )}
           </div>
           {!isCollapsed && (
-            <span className="text-sm font-semibold tracking-tight">GridFS GUI</span>
+            <div className="relative" ref={infoRef}>
+              <button
+                type="button"
+                onClick={() => setInfoOpen((prev) => !prev)}
+                className="flex size-6 items-center justify-center rounded-md text-[var(--sidebar-foreground)] opacity-40 transition-opacity hover:opacity-80"
+                aria-label="App info"
+              >
+                <Info className="size-3.5" />
+              </button>
+              {infoOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-lg border border-border bg-popover p-3 shadow-md">
+                  <p className="text-xs font-semibold text-foreground">GridFS GUI</p>
+                  <div className="mt-1.5 space-y-1">
+                    <p className="text-[11px] text-muted-foreground">
+                      Created by <span className="font-medium text-foreground">Shay Bushary</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      03/03/2026
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
