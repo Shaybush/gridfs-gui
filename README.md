@@ -13,28 +13,40 @@ A modern web-based GUI for browsing, managing, and previewing files stored in Mo
 - **Bulk Operations** — Select multiple files for bulk delete or bulk download as ZIP
 - **File Management** — Rename files, edit metadata, copy or move files between buckets
 - **Dark Mode** — Full dark mode support with system preference detection
-- **Docker Ready** — Single `docker-compose up` spins up the full stack including MongoDB
+- **Single-image Docker** — One image, one port (8000) serves both the UI and the API
 
 ## Quick Start
 
-Requirements: Docker and Docker Compose.
+Requirements: Docker.
+
+### Option 1 — Single container (simplest)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-org/gridfs-gui.git
+docker run -d \
+  -p 8000:8000 \
+  -e ENCRYPTION_KEY=$(openssl rand -hex 32) \
+  -v gridfs-gui-data:/app/data \
+  shaybushary/gridfs-gui
+```
+
+Open http://localhost:8000 in your browser. Port 8000 serves both the React UI and the REST API.
+
+### Option 2 — Full stack with MongoDB (docker-compose)
+
+```bash
+# Clone the repository
+git clone https://github.com/shaybushary/gridfs-gui.git
 cd gridfs-gui
 
-# 2. Copy and configure environment variables
+# Copy and configure environment variables
 cp .env.example .env
 # Edit .env and set ENCRYPTION_KEY (required — see Environment Variables below)
 
-# 3. Start the full stack
-docker-compose up -d
+# Start the production stack (pre-built image + MongoDB)
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-Open http://localhost:3000 in your browser.
-
-The backend API is available at http://localhost:8000.
+Open http://localhost:8000 in your browser.
 
 ### Generating an Encryption Key
 
@@ -74,11 +86,21 @@ pnpm install
 pnpm dev
 ```
 
-The GUI will be available at http://localhost:3004 (Vite default).
+The GUI will be available at http://localhost:3004.
 
 ### Running Both Together
 
 Open two terminal windows and run the backend and frontend commands above in parallel.
+
+### Building the Unified Image Locally
+
+```bash
+# Convenience script — builds frontend then copies output into server/public/
+./build.sh
+
+# Or build the Docker image directly from the project root
+docker build -t gridfs-gui .
+```
 
 ## Environment Variables
 
@@ -104,7 +126,7 @@ All environment variables are consumed by the **server** service.
 | Async DB Driver | Motor (async MongoDB) |
 | Package Management | pnpm (frontend), uv (backend) |
 | Database | MongoDB 7 / GridFS |
-| Containerization | Docker, Docker Compose |
+| Containerization | Docker (single image, single port) |
 
 ## Project Structure
 
@@ -117,15 +139,18 @@ gridfs-gui/
 │   │   ├── hooks/      # Custom React hooks
 │   │   ├── contexts/   # React contexts (active connection, theme)
 │   │   └── common/     # Shared utilities, types, constants
-│   └── Dockerfile
+│   └── Dockerfile      # Standalone nginx image (dev/legacy)
 ├── server/             # FastAPI backend (Python)
 │   ├── app/
 │   │   ├── api/        # Route handlers (connections, buckets, files)
 │   │   ├── models/     # Pydantic request/response models
 │   │   └── services/   # Business logic (GridFS, encryption, connection pool)
 │   ├── main.py
-│   └── Dockerfile
-├── docker-compose.yml
+│   └── Dockerfile      # Standalone server image (dev/legacy)
+├── Dockerfile          # Unified multi-stage image (frontend + backend, port 8000)
+├── build.sh            # Local build helper: builds frontend, copies to server/public/
+├── docker-compose.yml      # Dev stack (builds from source, separate gui/server/mongo)
+├── docker-compose.prod.yml # Prod stack (pre-built image + mongo)
 ├── .env.example
 └── render.yaml
 ```

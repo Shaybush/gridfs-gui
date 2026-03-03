@@ -5,12 +5,9 @@ previews:
 projects:
   - name: gridfs-gui
     environments:
-      # ============================================
-      # Production (branch: main)
-      # ============================================
       - name: production
         services:
-          # Frontend: React + Vite static site served via nginx
+          # Frontend (static site)
           - type: web
             name: gridfs-gui-frontend
             runtime: static
@@ -27,7 +24,7 @@ projects:
                 source: /*
                 destination: /index.html
 
-          # Backend: FastAPI (Python via Docker)
+          # Backend (FastAPI via Docker)
           - type: web
             name: gridfs-gui-server
             runtime: docker
@@ -53,6 +50,4 @@ projects:
                 value: "gridfs-gui"
               - key: DATA_DIR
                 value: "/app/data"
-              # Note: Add the following secrets to gridfs_gui_env group in Render dashboard:
-              # - ENCRYPTION_KEY  (generate with: openssl rand -hex 32)
-              # - CORS_ORIGINS    (set to your frontend Render URL, e.g. https://gridfs-gui-frontend.onrender.com)
+              # Secrets (ENCRYPTION_KEY, CORS_ORIGINS) managed in gridfs_gui_env group on Render dashboard

@@ -1,6 +1,4 @@
-# ============================================================
 # Python
-# ============================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -10,7 +8,6 @@ __pycache__/
 .venv/
 venv/
 env/
-.env
 *.egg-info/
 dist/
 build/
@@ -22,9 +19,7 @@ htmlcov/
 .coverage
 coverage.xml
 
-# ============================================================
 # Node / Frontend
-# ============================================================
 node_modules/
 dist/
 .cache/
@@ -32,10 +27,7 @@ dist/
 .vite/
 *.local
 
-# ============================================================
 # IDE
-# ============================================================
-# VS Code — keep .vscode/settings.json if desired
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
@@ -45,9 +37,7 @@ dist/
 *.sublime-project
 *.sublime-workspace
 
-# ============================================================
 # OS
-# ============================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -56,24 +46,16 @@ dist/
 ehthumbs.db
 Thumbs.db
 
-# ============================================================
-# Project Data
-# ============================================================
-# Persistent connection store — contains encrypted secrets
+# Project data (contains encrypted secrets)
 data/
 
-# ============================================================
-# Environment Files
-# ============================================================
+# Environment
 .env
 .env.local
 .env.*.local
-# Keep the example file
 !.env.example
 
-# ============================================================
 # Logs
-# ============================================================
 *.log
 logs/
 npm-debug.log*
@@ -81,8 +63,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ============================================================
-# Docker
-# ============================================================
-# Keep Dockerfiles, ignore generated artifacts
+# Docker artifacts
 *.tar
+
+# Frontend build output copied into backend
+server/public/

@@ -1,8 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.api.routes import router as api_router
@@ -50,3 +53,35 @@ app.include_router(api_router)
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "app": settings.APP_NAME}
+
+
+# Static file serving + SPA fallback (may not exist during development)
+STATIC_DIR = Path(__file__).resolve().parent.parent / "public"
+
+if STATIC_DIR.is_dir():
+    # Mount static asset directories (js, css, assets, etc.)
+    for subdir in ("js", "css", "assets"):
+        sub_path = STATIC_DIR / subdir
+        if sub_path.is_dir():
+            app.mount(f"/{subdir}", StaticFiles(directory=sub_path), name=f"static-{subdir}")
+
+    @app.middleware("http")
+    async def spa_fallback(request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+
+        if (
+            response.status_code == 404
+            and not path.startswith("/api")
+            and not path.startswith(("/js", "/css", "/assets"))
+            and path != "/health"
+        ):
+            index = STATIC_DIR / "index.html"
+            if index.is_file():
+                return FileResponse(index, media_type="text/html")
+
+        return response
+
+    @app.get("/")
+    async def serve_index():
+        return FileResponse(STATIC_DIR / "index.html", media_type="text/html")

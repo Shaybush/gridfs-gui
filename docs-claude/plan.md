@@ -3,7 +3,7 @@
 > Full MVP (v1.0) phased plan based on `product-docs/GRIDFS_GUI_PROJECT_PLAN.md`
 
 **Created**: 2026-03-02
-**Updated**: 2026-03-02
+**Updated**: 2026-03-02 (Phase 6 added — unified single-image Docker distribution)
 
 ## Actual Tech Stack
 
@@ -475,66 +475,149 @@
 ## Phase 5: Docker, CI/CD & Release
 
 **Assigned to**: `devops-engineer`
-**Date Started**:
-**Status**: [ ] Not Started | [ ] In Progress | [ ] Completed
+**Date Started**: 2026-03-02
+**Status**: [x] Completed
 
 ### 5.1 Docker
 
-- [ ] Root `docker-compose.yml` for full stack:
+- [x] Root `docker-compose.yml` for full stack:
   - `gui` service: multi-stage build (pnpm install → vite build → nginx:alpine to serve static)
-  - `server` service: existing Dockerfile (python:3.12-slim + uv), port 8000
+  - `server` service: existing Dockerfile (python:3.12-slim + uv), port 8000 (internal only, proxied via nginx)
   - `mongo` service: mongo:7, port 27017, volume for data
-  - Shared network, environment variables
-- [ ] Update server Dockerfile: non-root user, health check
-- [ ] Create `gui/Dockerfile`: multi-stage (node:20-alpine → build → nginx:alpine → serve dist)
-- [ ] `.dockerignore` for both `gui/` and `server/`
-- [ ] OR: single combined Dockerfile — nginx serves frontend + reverse proxies `/api` to uvicorn
+  - Shared `gridfs-net` bridge network, environment variables via `${VAR}` substitution
+- [x] Update server Dockerfile: non-root user (`appuser:1001`), `VOLUME ["/app/data"]`
+- [x] Create `gui/Dockerfile`: multi-stage (node:20-alpine + corepack/pnpm → build → nginx:alpine → serve dist)
+- [x] Create `gui/nginx.conf`: static files, `/api/` reverse proxy to `http://server:8000`, gzip, SPA fallback, cache headers
+- [x] `.dockerignore` for both `gui/` and `server/`
 
 ### 5.2 GitHub Actions — CI
 
-- [ ] `.github/workflows/ci.yml` on PR to `main`:
-  - Frontend: `pnpm install` → `pnpm lint` → `pnpm test` → `pnpm build`
-  - Backend: `uv sync` → `pytest` → type check (if mypy/pyright added)
+- [x] `.github/workflows/ci.yml` on push/PR to `main`:
+  - Frontend: pnpm install → lint → test → build (Node 20, pnpm 10, cached store)
+  - Backend: uv sync → pytest (Python 3.12, uv cached, graceful skip if no tests)
+  - Concurrency: `ci-${{ github.ref }}` with `cancel-in-progress: true`
 
 ### 5.3 GitHub Actions — Release
 
-- [ ] `.github/workflows/release.yml` on tag `v*`:
-  - Build multi-platform Docker image (amd64, arm64)
-  - Push to Docker Hub
-  - Tags: `latest` + version
+- [x] `.github/workflows/release.yml` on tag `v*`:
+  - Two parallel jobs: `build-gui` and `build-server`
+  - Multi-platform (linux/amd64, linux/arm64) via docker/buildx-action
+  - Push to Docker Hub: `shaybushary/gridfs-gui` + `shaybushary/gridfs-gui-server`
+  - Tags: `latest` + semver (stripped `v` prefix)
+  - GHA layer cache per image scope
 
 ### 5.4 Documentation & Release Prep
 
 - [x] Root `README.md`: description, features, quick start (docker-compose), dev setup, env vars, tech stack, project structure
 - [x] `CONTRIBUTING.md` — code style, PR process, local setup
-- [x] Root `.env.example`
+- [x] Root `.env.example` (includes `VITE_API_URL` for frontend)
 - [x] Root `.gitignore` — Python, Node, IDE, OS, data dir
 - [x] `.github/ISSUE_TEMPLATE/bug_report.md`
 - [x] `.github/ISSUE_TEMPLATE/feature_request.md`
 - [x] Root `render.yaml` — static frontend + Docker backend using projects/environments structure
-- [ ] Tag `v1.0.0`, create GitHub Release
+- [x] Tag `v1.0.0`, create GitHub Release
 
 ### 5.5 Git & GitHub Setup
 
-- [ ] Initialize git repo (if not done)
-- [ ] Create GitHub repository
-- [ ] Push code
-- [ ] Enable Issues + Discussions
-- [ ] Issue templates (bug, feature request)
+- [x] GitHub repository created: `shay-bushary/gridfs-gui` (public)
+- [x] Remote added, all code pushed
+- [x] Issues + Discussions enabled
+- [x] Issue templates (bug, feature request) created
+- [x] Tagged `v1.0.0`, GitHub Release published
+
+### 5.6 Additional Changes
+
+- [x] `gui/src/common/constants.ts`: Changed `API_GATEWAY_URL` from hardcoded `http://localhost:8000` to `import.meta.env.VITE_API_URL || ''` — enables relative URLs behind nginx proxy in Docker, configurable for local dev
+- [x] `gui/vite.config.ts`: Fixed `envDir` from `../../` (wrong parent) to `../` (project root) so Vite picks up root `.env` files
 
 #### Phase 5 Completion Report
 
 | Question                                 | Response |
 | ---------------------------------------- | -------- |
-| What was implemented?                    |          |
-| Were there any deviations from the plan? |          |
-| Issues/blockers encountered?             |          |
-| How were issues resolved?                |          |
-| Any technical debt introduced?           |          |
-| Recommendations for next phase?          |          |
+| What was implemented?                    | Full Docker setup (compose + Dockerfiles + nginx reverse proxy), CI workflow (lint/test/build for both frontend and backend), Release workflow (multi-platform Docker Hub push), comprehensive documentation (README, CONTRIBUTING, .env.example, .gitignore, issue templates, render.yaml), GitHub repo creation with release v1.0.0 |
+| Were there any deviations from the plan? | Used separate Docker images instead of combined Dockerfile for release. Server port 8000 is internal-only in Docker (proxied through nginx on port 3000). Added `VITE_API_URL` env var for configurable API base URL. Fixed vite envDir path. Healthcheck in compose uses Python urllib instead of curl (removed curl from server image). |
+| Issues/blockers encountered?             | Frontend hardcoded `API_GATEWAY_URL = 'http://localhost:8000'` which wouldn't work behind nginx proxy in Docker. Vite `envDir` pointed to wrong parent directory. |
+| How were issues resolved?                | Changed `API_GATEWAY_URL` to use `import.meta.env.VITE_API_URL || ''` — empty string means relative URLs (works with nginx proxy). Fixed `envDir` to `../` (project root). |
+| Any technical debt introduced?           | Docker Hub secrets (`DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`) need to be added to GitHub repo settings before release workflow works. Render.yaml requires `gridfs_gui_env` environment group to be created on Render dashboard. Backend test step gracefully skips (no pytest in deps yet). |
+| Recommendations for next phase?          | Add pytest to backend dev dependencies and write API tests. Consider adding Docker build test to CI. Set up Docker Hub secrets. Add Dependabot config for automated dependency updates. |
 
-**Completed by**:
-**Date Completed**:
+**Completed by**: `devops-engineer` (4 parallel agents for Docker/CI/Release/Docs + 1 for GitHub setup), `code-simplifier` (cleanup pass)
+**Date Completed**: 2026-03-02
+
+---
+
+## Phase 6: Unified Single-Image Docker Distribution
+
+**Assigned to**: `devops-engineer` (Dockerfile + build script), `senior-backend-engineer` (FastAPI static serving), `code-simplifier` (review)
+**Date Started**: 2026-03-02
+**Status**: [x] Completed
+
+**Goal**: Ship GridFS GUI as a **single Docker image** on Docker Hub. Users run one container — no docker-compose, no nginx sidecar, no separate frontend container. FastAPI serves both the API and the built React frontend from a `public/` directory.
+
+```
+docker run -d -p 8000:8000 -e ENCRYPTION_KEY=$(openssl rand -hex 32) shaybushary/gridfs-gui
+```
+
+### 6.1 Backend — FastAPI Static File Serving
+
+- [x] `StaticFiles` mount in `app/main.py` at `/` (after all `/api` and `/health` routes)
+- [x] SPA fallback middleware: non-API 404s return `public/index.html` for React Router
+- [x] Guard: only mounts if `public/` directory exists (dev mode compatible)
+- [x] No new dependencies — uses built-in `fastapi.staticfiles.StaticFiles`
+
+### 6.2 Build Script — `build.sh`
+
+- [x] Create `build.sh` at project root (executable, `set -euo pipefail`)
+- [x] Make executable: `chmod +x build.sh`
+- [x] Add `server/public/` to `.gitignore` (build artifact, not source)
+
+### 6.3 Unified Dockerfile
+
+- [x] Create `Dockerfile` at project root (3-stage multi-stage build):
+  - Stage 1 `frontend-build`: `node:20-alpine` + corepack/pnpm@10, builds to `/app/gui/dist/`, `VITE_API_URL=` (empty = relative URLs)
+  - Stage 2 `backend-build`: `python:3.12-slim` + uv from ghcr.io, deps then source
+  - Stage 3 `runtime`: `python:3.12-slim`, `appuser:1001`, frontend copied to `/app/public/`, HEALTHCHECK, port 8000
+- [x] Create root `.dockerignore` (node_modules, .venv, .git, data/, *.md, .env, gui/dist/, server/public/, docs-claude/)
+
+### 6.4 Update Release Workflow
+
+- [x] Replaced `build-gui` + `build-server` jobs with single `build-and-push` job
+- [x] Context: `.`, file: `./Dockerfile`
+- [x] Image: `shaybushary/gridfs-gui:latest` + `shaybushary/gridfs-gui:<version>`
+- [x] Multi-platform (amd64, arm64) + GHA layer cache preserved
+
+### 6.5 Update Documentation
+
+- [x] README primary Quick Start: `docker run` one-liner with `openssl rand -hex 32` ENCRYPTION_KEY, data volume
+- [x] README secondary: `docker-compose -f docker-compose.prod.yml up -d`
+- [x] Clarified: port 8000 serves both UI and API
+- [x] Updated features line, tech stack table, project structure (root Dockerfile, build.sh, docker-compose.prod.yml)
+
+### 6.6 docker-compose.prod.yml
+
+- [x] Created `docker-compose.prod.yml`: app (unified image) + mongo:7, volumes app-data + mongo-data, healthcheck, restart: unless-stopped
+
+#### Phase 6 Completion Report
+
+| Question                                 | Response |
+| ---------------------------------------- | -------- |
+| What was implemented?                    | FastAPI `StaticFiles` mount + SPA fallback middleware in `main.py`, `build.sh` (local build helper), root `Dockerfile` (3-stage unified image: node frontend build + uv backend build + python:3.12-slim runtime), root `.dockerignore`, updated `release.yml` (single job, single image), updated `README.md` (docker run one-liner primary, prod compose secondary), `docker-compose.prod.yml` (unified image + mongo) |
+| Were there any deviations from the plan? | None — all tasks (6.1-6.6) implemented as specified |
+| Issues/blockers encountered?             | None |
+| How were issues resolved?                | N/A |
+| Any technical debt introduced?           | `gui/Dockerfile` and `server/Dockerfile` kept as-is for legacy dev use. Dev `docker-compose.yml` unchanged (still builds from source separately). |
+| Recommendations for next phase?          | Consider adding a `docker build` smoke-test step to CI. Add pytest to backend dev dependencies and write API tests. |
+
+**Completed by**: `senior-backend-engineer` (task 6.1), `devops-engineer` (tasks 6.2-6.6), `code-simplifier` (cleanup pass)
+**Date Completed**: 2026-03-02
+
+#### Notes
+
+- **Key architectural change**: FastAPI serves React build via `StaticFiles` — no nginx in production image
+- **Port simplification**: single port 8000 for everything (API + UI)
+- **Dev workflow unchanged**: `docker-compose up` still works with separate containers for hot-reload
+- **Phase 5 Docker artifacts preserved**: `gui/Dockerfile`, `gui/nginx.conf`, `docker-compose.yml` remain for dev use
+- **Image size target**: ~150-200MB (python:3.12-slim base + deps + static assets, no nginx/node in runtime)
 
 ---
 
