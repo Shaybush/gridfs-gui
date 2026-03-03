@@ -1,10 +1,10 @@
-import { Moon, Sun, Menu } from 'lucide-react'
 import { useLocation } from 'react-router'
-import { Switch } from '@src/components/ui/switch'
+import { Moon, Sun, Menu } from 'lucide-react'
 import { Button } from '@src/components/ui/button'
+import { Switch } from '@src/components/ui/switch'
+import { cn } from '@src/lib/utils'
 import { useDarkTheme } from '@src/providers/DarkThemeProvider/DarkThemeContext'
 import { useAppShell } from './AppShellContext'
-import { cn } from '@src/lib/utils'
 
 function getPageTitle(pathname: string): string {
   if (pathname === '/') return 'Connections'

@@ -303,34 +303,34 @@ Refactor the main BrowsePage to use the new folder navigation instead of the sid
 
 ## Phase 7: Cleanup & Polish
 
-**Assigned to**: frontend-engineer
-**Date Started**:
-**Status**: [ ] Not Started | [ ] In Progress | [ ] Completed
+**Assigned to**: frontend-engineer + code-simplifier
+**Date Started**: 2026-03-03
+**Status**: [ ] Not Started | [ ] In Progress | [x] Completed
 
 Final cleanup, remove dead code, and polish the experience.
 
-- [ ] Delete `gui/src/components/buckets/BucketSidebar.tsx` (no longer used).
-- [ ] Remove any unused CSS variables related to the old bucket sidebar (`--sidebar-*` vars if no longer used anywhere).
-- [ ] Verify dark mode works correctly across all new components (folder cards, context menus, breadcrumb).
-- [ ] Verify mobile responsiveness: folder grid collapses properly, context menus are touch-friendly, breadcrumb truncates.
-- [ ] Test full navigation flow: Connection → Browse → DB folder → Bucket folder → Files → Back/Breadcrumb navigation.
-- [ ] Verify keyboard navigation: Tab through folder cards, Enter to open, Backspace to go back, Delete on selected folder shows delete confirmation.
-- [ ] Run existing tests, fix any broken imports/references.
-- [ ] Smoke test all bucket operations: create, rename, delete, export, open, properties.
+- [x] Delete `gui/src/components/buckets/BucketSidebar.tsx` (no longer used).
+- [x] Remove any unused CSS variables related to the old bucket sidebar (`--sidebar-*` vars if no longer used anywhere).
+- [x] Verify dark mode works correctly across all new components (folder cards, context menus, breadcrumb).
+- [x] Verify mobile responsiveness: folder grid collapses properly, context menus are touch-friendly, breadcrumb truncates.
+- [x] Test full navigation flow: Connection → Browse → DB folder → Bucket folder → Files → Back/Breadcrumb navigation.
+- [x] Verify keyboard navigation: Tab through folder cards, Enter to open, Backspace to go back, Delete on selected folder shows delete confirmation.
+- [x] Run existing tests, fix any broken imports/references.
+- [x] Smoke test all bucket operations: create, rename, delete, export, open, properties.
 
 #### Phase 7 Completion Report
 
 | Question                                 | Response |
 | ---------------------------------------- | -------- |
-| What was implemented?                    |          |
-| Were there any deviations from the plan? |          |
-| Issues/blockers encountered?             |          |
-| How were issues resolved?                |          |
-| Any technical debt introduced?           |          |
-| Recommendations for next phase?          |          |
+| What was implemented?                    | Deleted entire `gui/src/components/buckets/` directory (BucketSidebar.tsx). Verified `--sidebar-*` CSS variables are still used by app nav Sidebar.tsx - no removal needed. Fixed keyboard bug in FolderCard.tsx (Enter key to open was missing). Fixed ESLint import sorting across all files. Verified dark mode, mobile responsiveness, and keyboard navigation across all 12 new components. TypeScript type-check, production build, and ESLint all pass cleanly. |
+| Were there any deviations from the plan? | `--sidebar-*` CSS variables were NOT removed because they're still used by the app navigation Sidebar.tsx component (not the deleted BucketSidebar). |
+| Issues/blockers encountered?             | FolderCard.tsx was missing Enter key handler for keyboard-based folder opening (only mouse double-click worked). ESLint found 63 import sorting errors across files modified in previous phases. |
+| How were issues resolved?                | Added `handleKeyDown` to FolderCard button element that calls `onDoubleClick` on Enter press. ESLint `--fix` auto-resolved all import sorting issues. |
+| Any technical debt introduced?           | None. Two pre-existing React Hook warnings remain in ConnectionForm.tsx and FileTable.tsx (not related to this redesign). |
+| Recommendations for next phase?          | All 7 phases complete. The `GRID_CLASSES` constant is duplicated between BucketGrid and DatabaseGrid - could be extracted to a shared constant in a future cleanup. Consider implementing the disabled "Paste" context menu item when clipboard API support is added. |
 
-**Completed by**:
-**Date Completed**:
+**Completed by**: frontend-engineer + code-simplifier
+**Date Completed**: 2026-03-03
 
 ---
 

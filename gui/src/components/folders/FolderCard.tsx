@@ -30,6 +30,15 @@ export function FolderCard(props: FolderCardProps) {
     onContextMenu?.(e);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    // Space is intentionally left to the button default (select only) to
+    // preserve the distinction between select and open.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onDoubleClick?.();
+    }
+  }
+
   return (
     <button
       type='button'
@@ -41,6 +50,7 @@ export function FolderCard(props: FolderCardProps) {
       )}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
       aria-label={name}
       aria-pressed={selected}

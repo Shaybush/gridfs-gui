@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { toast } from 'sonner'
 import {
   Check,
   Loader2,
@@ -11,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { cn } from '@src/lib/utils'
+import { toast } from 'sonner'
 import { Badge } from '@src/components/ui/badge'
 import { Button } from '@src/components/ui/button'
 import {
@@ -30,8 +29,9 @@ import {
   DialogTitle,
 } from '@src/components/ui/dialog'
 import { Tooltip as CustomTooltip } from '@src/components/ui/tooltip/'
-import { ConnectionForm } from './ConnectionForm'
 import { useActiveConnection } from '@src/contexts/ActiveConnectionContext'
+import { cn } from '@src/lib/utils'
+import { ConnectionForm } from './ConnectionForm'
 import type { Connection, ConnectionUpdate, TestConnectionResult } from '@src/types/connection'
 
 type TestStatus = 'idle' | 'testing' | 'passed' | 'failed'

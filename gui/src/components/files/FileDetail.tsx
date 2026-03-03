@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Check, Copy, Download, Loader2, MoveRight, Pencil, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@src/components/ui/sheet'
+import { formatDate } from '@src/common/utils/format-date'
+import { formatFileSize } from '@src/common/utils/format-file-size'
+import { CopyMoveDialog } from '@src/components/files/CopyMoveDialog'
+import { FilePreview } from '@src/components/files/FilePreview'
+import { FullscreenPreview } from '@src/components/files/FullscreenPreview'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,15 +17,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@src/components/ui/alert-dialog'
+import { Badge } from '@src/components/ui/badge'
 import { Button } from '@src/components/ui/button'
 import { Input } from '@src/components/ui/input'
 import { Separator } from '@src/components/ui/separator'
-import { Badge } from '@src/components/ui/badge'
-import { formatDate } from '@src/common/utils/format-date'
-import { formatFileSize } from '@src/common/utils/format-file-size'
-import { FilePreview } from '@src/components/files/FilePreview'
-import { FullscreenPreview } from '@src/components/files/FullscreenPreview'
-import { CopyMoveDialog } from '@src/components/files/CopyMoveDialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@src/components/ui/sheet'
 import type { BucketInfo } from '@src/types/bucket'
 import type { FileInfo } from '@src/types/file'
 

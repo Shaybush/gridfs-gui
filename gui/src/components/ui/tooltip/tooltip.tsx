@@ -2,8 +2,8 @@
 
 import { useId, useMemo, type FC } from 'react';
 import { Tooltip as ReactTooltip } from 'react-tooltip';
-import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { TooltipProps } from './tooltip.types';
 
 /**

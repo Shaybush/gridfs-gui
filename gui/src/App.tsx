@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
 import { Route, Routes } from 'react-router'
+import { Toaster } from '@src/components/ui/sonner'
+import { useActiveConnection } from '@src/contexts/ActiveConnectionContext'
+import { ActiveConnectionProvider } from '@src/contexts/ActiveConnectionProvider'
+import { AppShell } from './components/layout'
 import { routes } from './routes'
 import type { Route as RouteType } from './common/types'
-import { AppShell } from './components/layout'
-import { Toaster } from '@src/components/ui/sonner'
-import { ActiveConnectionProvider } from '@src/contexts/ActiveConnectionProvider'
-import { useActiveConnection } from '@src/contexts/ActiveConnectionContext'
 
 function renderRoute(route: RouteType, index: number) {
   const { to: path, Component, children } = route

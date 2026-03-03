@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
 import { Loader2, Shield } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@src/components/ui/button'
-import { Input } from '@src/components/ui/input'
-import { Label } from '@src/components/ui/label'
-import { Switch } from '@src/components/ui/switch'
 import {
   DialogContent,
   DialogDescription,
@@ -12,6 +9,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@src/components/ui/dialog'
+import { Input } from '@src/components/ui/input'
+import { Label } from '@src/components/ui/label'
+import { Switch } from '@src/components/ui/switch'
 import type { Connection, ConnectionCreate, ConnectionUpdate } from '@src/types/connection'
 
 interface ConnectionFormBaseProps {

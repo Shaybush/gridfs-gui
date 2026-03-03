@@ -7,9 +7,9 @@ import {
   FileX,
   Upload,
 } from 'lucide-react'
-import { Button } from '@src/components/ui/button'
 import { formatFileSize } from '@src/common/utils/format-file-size'
 import { Pagination } from '@src/components/files/Pagination'
+import { Button } from '@src/components/ui/button'
 import type { FileInfo, FileListResponse } from '@src/types/file'
 
 function FileTypeIcon(props: { contentType: string | null; className?: string }) {

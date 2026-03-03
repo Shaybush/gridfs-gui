@@ -1,10 +1,10 @@
 import { useCallback, useRef, useState } from 'react'
 import { CloudUpload, FileUp, X } from 'lucide-react'
-import { cn } from '@src/lib/utils'
 import { formatFileSize } from '@src/common/utils/format-file-size'
 import { Button } from '@src/components/ui/button'
 import { Label } from '@src/components/ui/label'
 import { Progress } from '@src/components/ui/progress'
+import { cn } from '@src/lib/utils'
 
 interface UploadZoneProps {
   uploadProgress: number

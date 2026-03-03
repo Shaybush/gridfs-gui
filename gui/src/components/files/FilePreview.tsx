@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Download, FileX, Maximize2 } from 'lucide-react'
+import { resolveContentType } from '@src/common/utils/content-type'
 import { Button } from '@src/components/ui/button'
 import { cn } from '@src/lib/utils'
-import { resolveContentType } from '@src/common/utils/content-type'
 import type { FileInfo } from '@src/types/file'
 
 interface FilePreviewProps {

@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Download, FileX, X } from 'lucide-react'
-import { Dialog, DialogContent } from '@src/components/ui/dialog'
-import { Button } from '@src/components/ui/button'
-import { Badge } from '@src/components/ui/badge'
-import { cn } from '@src/lib/utils'
 import { resolveContentType } from '@src/common/utils/content-type'
 import { formatFileSize } from '@src/common/utils/format-file-size'
+import { Badge } from '@src/components/ui/badge'
+import { Button } from '@src/components/ui/button'
+import { Dialog, DialogContent } from '@src/components/ui/dialog'
+import { cn } from '@src/lib/utils'
 import type { FileInfo } from '@src/types/file'
 
 interface FullscreenPreviewProps {

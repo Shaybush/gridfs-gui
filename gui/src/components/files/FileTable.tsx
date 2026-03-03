@@ -15,18 +15,10 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-import { Button } from '@src/components/ui/button'
-import { Input } from '@src/components/ui/input'
-import { Checkbox } from '@src/components/ui/checkbox'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@src/components/ui/table'
+import { formatDate } from '@src/common/utils/format-date'
+import { formatFileSize } from '@src/common/utils/format-file-size'
+import { CopyMoveDialog } from '@src/components/files/CopyMoveDialog'
+import { Pagination } from '@src/components/files/Pagination'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +30,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@src/components/ui/alert-dialog'
+import { Button } from '@src/components/ui/button'
+import { Checkbox } from '@src/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,10 +39,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@src/components/ui/dropdown-menu'
-import { CopyMoveDialog } from '@src/components/files/CopyMoveDialog'
-import { formatDate } from '@src/common/utils/format-date'
-import { formatFileSize } from '@src/common/utils/format-file-size'
-import { Pagination } from '@src/components/files/Pagination'
+import { Input } from '@src/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@src/components/ui/table'
 import type { BucketInfo } from '@src/types/bucket'
 import type { FileInfo, FileListResponse } from '@src/types/file'
 

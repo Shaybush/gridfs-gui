@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { httpClient } from '@src/lib/HttpClient/HttpClient';
 import { API_GATEWAY_URL } from '@src/common/constants';
+import { httpClient } from '@src/lib/HttpClient/HttpClient';
 import type { BucketInfo, BucketStats } from '@src/types/bucket';
 
 interface UseBucketsReturn {

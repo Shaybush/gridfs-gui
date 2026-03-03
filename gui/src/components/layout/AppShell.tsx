@@ -1,8 +1,8 @@
 import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import { cn } from '@src/lib/utils'
-import { Sidebar } from './Sidebar'
-import { Header } from './Header'
 import { AppShellContext } from './AppShellContext'
+import { Header } from './Header'
+import { Sidebar } from './Sidebar'
 
 interface AppShellProps {
   children: ReactNode

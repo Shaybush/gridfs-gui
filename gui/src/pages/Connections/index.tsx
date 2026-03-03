@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Button } from '@src/components/ui/button'
-import { Dialog } from '@src/components/ui/dialog'
 import { ConnectionForm } from '@src/components/connections/ConnectionForm'
 import { ConnectionList } from '@src/components/connections/ConnectionList'
+import { Button } from '@src/components/ui/button'
+import { Dialog } from '@src/components/ui/dialog'
 import { useConnections } from '@src/hooks/useConnections'
 
 export default function ConnectionsPage() {

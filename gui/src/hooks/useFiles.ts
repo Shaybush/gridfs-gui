@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { httpClient } from '@src/lib/HttpClient/HttpClient'
 import { API_GATEWAY_URL } from '@src/common/constants'
+import { httpClient } from '@src/lib/HttpClient/HttpClient'
 import type { FileCopyMoveResponse, FileInfo, FileListResponse, FileUploadResponse } from '@src/types/file'
 
 type SortField = 'uploadDate' | 'filename' | 'length'

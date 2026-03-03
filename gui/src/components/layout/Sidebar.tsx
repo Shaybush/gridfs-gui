@@ -6,11 +6,11 @@ import {
   PanelLeft,
   PanelLeftClose,
 } from 'lucide-react'
-import { cn } from '@src/lib/utils'
+import { Badge } from '@src/components/ui/badge'
 import { Button } from '@src/components/ui/button'
 import { Separator } from '@src/components/ui/separator'
 import { Tooltip } from '@src/components/ui/tooltip/'
-import { Badge } from '@src/components/ui/badge'
+import { cn } from '@src/lib/utils'
 import { useAppShell } from './AppShellContext'
 
 interface NavItem {
