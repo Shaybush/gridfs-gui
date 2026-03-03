@@ -8,13 +8,36 @@ torn down individually via :meth:`disconnect` or globally via
 """
 
 import logging
+import re
 import time
+from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.services.connection_store import ConnectionStore
 
 logger = logging.getLogger(__name__)
+
+_RUNNING_IN_DOCKER: bool = Path("/.dockerenv").exists()
+
+_LOCALHOST_RE = re.compile(
+    r"(mongodb(?:\+srv)?://(?:[^@]*@)?)"  # scheme + optional user:pass@
+    r"(localhost|127\.0\.0\.1)"            # host to replace
+    r"((?::\d+)?.*)",                      # optional port + rest
+)
+
+
+def _rewrite_localhost_uri(uri: str) -> str:
+    """When running inside Docker, replace localhost/127.0.0.1 with
+    host.docker.internal so users can reach MongoDB on the host machine."""
+    if not _RUNNING_IN_DOCKER:
+        return uri
+    m = _LOCALHOST_RE.match(uri)
+    if not m:
+        return uri
+    rewritten = f"{m.group(1)}host.docker.internal{m.group(3)}"
+    logger.info("Rewrote localhost URI to host.docker.internal for Docker networking")
+    return rewritten
 
 
 class ConnectionPool:
@@ -61,7 +84,7 @@ class ConnectionPool:
             return
 
         conn_data = await self._store.get(conn_id)  # raises KeyError if missing
-        uri = conn_data["uri"]
+        uri = _rewrite_localhost_uri(conn_data["uri"])
         tls = conn_data.get("tls", False)
         tls_ca_file = conn_data.get("tls_ca_file")
 

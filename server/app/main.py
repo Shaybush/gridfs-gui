@@ -1,4 +1,5 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from app.config import get_settings
 from app.api.routes import router as api_router
@@ -17,7 +19,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-settings = get_settings()
+try:
+    settings = get_settings()
+except ValidationError as e:
+    missing = [err["loc"][0] for err in e.errors() if err["type"] == "missing"]
+    if missing:
+        print("\n" + "=" * 60)
+        print("  GridFS GUI - Missing required environment variables:")
+        print()
+        for var in missing:
+            print(f"    - {var}")
+        print()
+        print("  Example:")
+        print("    docker run -e ENCRYPTION_KEY=$(openssl rand -hex 32) \\")
+        print("      shaybush/gridfs-gui-server:latest")
+        print("=" * 60 + "\n")
+    else:
+        print(f"\nConfiguration error: {e}\n")
+    sys.exit(1)
 
 
 @asynccontextmanager
