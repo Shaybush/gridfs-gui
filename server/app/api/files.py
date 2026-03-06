@@ -9,8 +9,11 @@ downloading, inspecting, and deleting individual GridFS files.
 
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
@@ -26,8 +29,18 @@ from app.models.file import (
     FileListResponse,
     FileUpdateRequest,
     FileUploadResponse,
+    PreviewInfoResponse,
+)
+from app.services.document_converter import (
+    CSV_MIME_TYPES,
+    MARKDOWN_MIME_TYPES,
+    OFFICE_EXTENSIONS,
+    OFFICE_MIME_TYPES,
+    DocumentConverter,
+    _has_libreoffice,
 )
 from app.services.gridfs_service import GridFSService
+from app.services.preview_cache import PreviewCache
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +50,34 @@ router = APIRouter(
 )
 
 _UPLOAD_CHUNK_SIZE = 512 * 1024
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _content_disposition(disposition: str, filename: str) -> str:
+    """Build a Content-Disposition header value safe for non-ASCII filenames.
+
+    Uses RFC 5987 ``filename*=UTF-8''...`` for Unicode names while keeping
+    an ASCII-safe fallback in the plain ``filename`` parameter.
+    """
+    # ASCII-safe fallback: replace non-ASCII chars with underscore
+    ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_")
+    # RFC 5987 UTF-8 encoded version
+    utf8_name = quote(filename, safe="")
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{utf8_name}"
+
+
+async def _read_stream(svc: GridFSService, conn_id: str, db_name: str,
+                       bucket_name: str, file_id: str) -> bytes:
+    """Download a GridFS file and return the full contents as bytes."""
+    stream, _ = await svc.download_file(conn_id, db_name, bucket_name, file_id)
+    chunks: list[bytes] = []
+    async for chunk in stream:
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +395,7 @@ async def download_file(
         content=stream,
         media_type=content_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": _content_disposition("attachment", filename),
             "Content-Length": str(length),
         },
     )
@@ -362,7 +403,7 @@ async def download_file(
 
 @router.get(
     "/{file_id}/preview",
-    summary="Preview a file inline (supports Range requests)",
+    summary="Preview a file inline (supports Range requests and document conversion)",
     response_class=StreamingResponse,
 )
 async def preview_file(
@@ -371,6 +412,8 @@ async def preview_file(
     db_name: str,
     bucket_name: str,
     file_id: str,
+    page: int = Query(default=1, ge=1, description="Page number for CSV preview"),
+    rows_per_page: int = Query(default=100, ge=1, le=10000, description="Rows per page for CSV preview"),
     _: None = Depends(ensure_connected),
     svc: GridFSService = Depends(get_gridfs_service),
 ) -> Response:
@@ -378,6 +421,10 @@ async def preview_file(
 
     Sets ``Content-Disposition: inline`` so the browser renders the file
     directly (images, PDFs, video, audio, etc.).
+
+    **Document conversion** is supported for Office documents (DOCX, PPTX,
+    XLSX, etc.) which are converted to PDF, and for CSV / Markdown files
+    which are converted to HTML.
 
     For video and audio content, HTTP Range Requests (RFC 7233) are
     supported.  When the ``Range`` header is present, the endpoint returns
@@ -407,16 +454,144 @@ async def preview_file(
             range_end = int(raw_end)
 
     # ------------------------------------------------------------------
-    # Fetch file metadata & stream
+    # Fetch file metadata & determine preview type
     # ------------------------------------------------------------------
     try:
+        info = await svc.get_file_info(conn_id, db_name, bucket_name, file_id)
+        content_type = info.content_type or "application/octet-stream"
+        filename = info.filename
+        extension = os.path.splitext(filename)[1].lower()
+
+        # Check if the file requires document conversion
+        is_office = content_type in OFFICE_MIME_TYPES or extension in OFFICE_EXTENSIONS
+        is_csv = content_type in CSV_MIME_TYPES or extension == ".csv"
+        is_markdown = content_type in MARKDOWN_MIME_TYPES or extension in (".md", ".markdown")
+
+        # --------------------------------------------------------------
+        # Office document conversion (with caching)
+        # LibreOffice -> PDF if available, otherwise Python libs -> HTML
+        # --------------------------------------------------------------
+        if is_office:
+            if not DocumentConverter.can_convert_office(extension):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Preview for '{extension}' files requires LibreOffice which is not installed. "
+                           f"Supported formats without LibreOffice: .docx, .pptx, .xlsx",
+                )
+
+            cache = PreviewCache.get_instance()
+            upload_date_str = info.upload_date.isoformat() if isinstance(info.upload_date, datetime) else str(info.upload_date)
+
+            # Check cache first
+            cached = await cache.get(file_id, upload_date_str)
+            if cached is not None:
+                # Determine cached content type from cache metadata
+                is_pdf_cache = cached[:5] == b"%PDF-"
+                if is_pdf_cache:
+                    return Response(
+                        content=cached,
+                        media_type="application/pdf",
+                        headers={
+                            "Content-Disposition": _content_disposition("inline", f"{filename}.pdf"),
+                            "Content-Length": str(len(cached)),
+                        },
+                    )
+                else:
+                    return Response(
+                        content=cached,
+                        media_type="text/html",
+                        headers={
+                            "Content-Disposition": _content_disposition("inline", f"{filename}.html"),
+                        },
+                    )
+
+            file_bytes = await _read_stream(svc, conn_id, db_name, bucket_name, file_id)
+
+            try:
+                if _has_libreoffice():
+                    pdf_bytes = await DocumentConverter.convert_office_to_pdf(file_bytes, extension)
+                    await cache.set(file_id, upload_date_str, pdf_bytes)
+                    return Response(
+                        content=pdf_bytes,
+                        media_type="application/pdf",
+                        headers={
+                            "Content-Disposition": _content_disposition("inline", f"{filename}.pdf"),
+                            "Content-Length": str(len(pdf_bytes)),
+                        },
+                    )
+                else:
+                    html_content = DocumentConverter.convert_office_to_html(file_bytes, extension)
+                    html_bytes = html_content.encode("utf-8")
+                    await cache.set(file_id, upload_date_str, html_bytes)
+                    return Response(
+                        content=html_bytes,
+                        media_type="text/html",
+                        headers={
+                            "Content-Disposition": _content_disposition("inline", f"{filename}.html"),
+                        },
+                    )
+            except (RuntimeError, FileNotFoundError) as exc:
+                logger.error("Office conversion failed for %s: %s", file_id, exc)
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Document conversion failed: {exc}",
+                )
+
+        # --------------------------------------------------------------
+        # CSV -> HTML conversion (paginated)
+        # --------------------------------------------------------------
+        if is_csv:
+            file_bytes = await _read_stream(svc, conn_id, db_name, bucket_name, file_id)
+
+            try:
+                html_content, total_pages = DocumentConverter.convert_csv_to_html(
+                    file_bytes, page, rows_per_page,
+                )
+            except Exception as exc:
+                logger.error("CSV conversion failed for %s: %s", file_id, exc)
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"CSV conversion failed: {exc}",
+                )
+
+            return Response(
+                content=html_content,
+                media_type="text/html",
+                headers={
+                    "Content-Disposition": _content_disposition("inline", f"{filename}.html"),
+                    "X-Total-Pages": str(total_pages),
+                },
+            )
+
+        # --------------------------------------------------------------
+        # Markdown -> HTML conversion
+        # --------------------------------------------------------------
+        if is_markdown:
+            file_bytes = await _read_stream(svc, conn_id, db_name, bucket_name, file_id)
+
+            try:
+                html_content = DocumentConverter.convert_markdown_to_html(file_bytes)
+            except Exception as exc:
+                logger.error("Markdown conversion failed for %s: %s", file_id, exc)
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Markdown conversion failed: {exc}",
+                )
+
+            return Response(
+                content=html_content,
+                media_type="text/html",
+                headers={
+                    "Content-Disposition": _content_disposition("inline", f"{filename}.html"),
+                },
+            )
+
+        # --------------------------------------------------------------
+        # Native types (image, video, audio, text, PDF) - existing behavior
+        # Range request support for streamable types
+        # --------------------------------------------------------------
         if range_header and (range_start is not None or range_end is not None):
-            # We need file length to resolve suffix-ranges and clamp end.
-            # Fetch info first, then open a range stream.
-            info = await svc.get_file_info(conn_id, db_name, bucket_name, file_id)
             total_length = info.length
-            content_type = info.content_type or "application/octet-stream"
-            filename = info.filename
 
             # Resolve suffix-range: "bytes=-500" means last 500 bytes
             if range_start is None:
@@ -446,7 +621,7 @@ async def preview_file(
                 status_code=status.HTTP_206_PARTIAL_CONTENT,
                 media_type=content_type,
                 headers={
-                    "Content-Disposition": f'inline; filename="{filename}"',
+                    "Content-Disposition": _content_disposition("inline", filename),
                     "Content-Length": str(partial_length),
                     "Content-Range": f"bytes {range_start}-{range_end}/{total_length}",
                     "Accept-Ranges": "bytes",
@@ -462,7 +637,7 @@ async def preview_file(
                 content=stream,
                 media_type=file_info["content_type"],
                 headers={
-                    "Content-Disposition": f'inline; filename="{file_info["filename"]}"',
+                    "Content-Disposition": _content_disposition("inline", file_info["filename"]),
                     "Content-Length": str(file_info["length"]),
                     "Accept-Ranges": "bytes",
                 },
@@ -484,6 +659,65 @@ async def preview_file(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to preview file: {exc}",
+        )
+
+
+@router.get(
+    "/{file_id}/preview/info",
+    response_model=PreviewInfoResponse,
+    summary="Get preview info for a file",
+)
+async def get_preview_info(
+    conn_id: str,
+    db_name: str,
+    bucket_name: str,
+    file_id: str,
+    _: None = Depends(ensure_connected),
+    svc: GridFSService = Depends(get_gridfs_service),
+) -> PreviewInfoResponse:
+    """Return preview metadata for a file.
+
+    Indicates whether the file can be previewed, the preview type,
+    the original MIME type, and whether server-side conversion is needed.
+    """
+    try:
+        info = await svc.get_file_info(conn_id, db_name, bucket_name, file_id)
+        content_type = info.content_type or "application/octet-stream"
+        filename = info.filename
+        extension = os.path.splitext(filename)[1].lower()
+
+        preview_type = DocumentConverter.get_preview_type(content_type, filename)
+
+        is_convertible = (
+            content_type in OFFICE_MIME_TYPES
+            or extension in OFFICE_EXTENSIONS
+            or content_type in CSV_MIME_TYPES
+            or extension == ".csv"
+            or content_type in MARKDOWN_MIME_TYPES
+            or extension in (".md", ".markdown")
+        )
+
+        return PreviewInfoResponse(
+            previewable=preview_type is not None,
+            preview_type=preview_type,
+            original_type=content_type,
+            requires_conversion=preview_type is not None and is_convertible,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{file_id}' not found in bucket '{bucket_name}'",
+        )
+    except Exception as exc:
+        logger.exception("Error getting preview info: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get preview info: {exc}",
         )
 
 

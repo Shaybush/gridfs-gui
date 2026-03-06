@@ -1,11 +1,12 @@
 # === BUILD ===
-FROM node:20-alpine AS build
+FROM node:20-slim AS build
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
+RUN pnpm add -D esbuild || true
 
 COPY . .
 RUN pnpm build

@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "*"
     ENCRYPTION_KEY: str
     DATA_DIR: str = "./data"
+    PREVIEW_CACHE_MAX_MB: int = 200
+    PREVIEW_CACHE_TTL_SECONDS: int = 3600
+    PREVIEW_CONVERSION_TIMEOUT_SECONDS: int = 30
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -47,3 +47,10 @@
 - `gui/src/hooks/useFiles.ts` - File operations (list, upload, delete, download, rename, copy, move, bulk)
 - `gui/src/hooks/useDatabases.ts` - Fetch database list for a connection
 - `gui/src/hooks/useConnections.ts` - Connection CRUD
+
+## File Preview Components
+- `gui/src/components/files/previews/DocumentPreview.tsx` - Office doc preview: fetches backend-converted PDF, renders in iframe; shows spinner during conversion, error fallback with download button
+- `gui/src/components/files/previews/HTMLPreview.tsx` - HTML preview for CSV (paginated, reads X-Total-Pages header, prev/next controls) and Markdown (static); renders via sandboxed iframe using blob URL
+
+## Content-Type Utilities (updated)
+- `gui/src/common/utils/content-type.ts` - Added Office MIME types to map; added `isOfficeDocument(contentType)` and `isDocumentPreviewable(contentType, filename)` helpers
