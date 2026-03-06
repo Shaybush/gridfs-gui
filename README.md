@@ -155,6 +155,10 @@ gridfs-gui/
 └── render.yaml
 ```
 
+## Screenshots
+<img width="1512" height="762" alt="image" src="https://github.com/user-attachments/assets/4d7d7e63-eea7-4dc1-9796-30162174b2d4" />
+<img width="1512" height="764" alt="image" src="https://github.com/user-attachments/assets/8dd16c71-82bb-4e56-af6e-2957a7816e25" />
+
 ## License
 
 MIT
