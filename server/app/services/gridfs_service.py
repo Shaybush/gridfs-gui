@@ -7,6 +7,7 @@ All methods accept a ``conn_id`` and ``db_name`` and obtain the database
 handle from the singleton :class:`ConnectionPool`.
 """
 
+import base64
 import io
 import logging
 import math
@@ -105,20 +106,50 @@ class GridFSService:
         return filename
 
     @staticmethod
+    def _sanitize_value(value: Any) -> Any:
+        """Make a value JSON-serializable, handling bytes and nested structures."""
+        if isinstance(value, bytes):
+            try:
+                return value.decode("utf-8")
+            except (UnicodeDecodeError, ValueError):
+                return base64.b64encode(value).decode("ascii")
+        if isinstance(value, dict):
+            return {k: GridFSService._sanitize_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [GridFSService._sanitize_value(item) for item in value]
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
+
+    @staticmethod
     def _doc_to_file_info(doc: dict) -> FileInfo:
         """Convert a raw MongoDB ``.files`` document to a FileInfo model."""
+        sanitize = GridFSService._sanitize_value
+
+        # Filename may be bytes in legacy GridFS documents
+        filename = sanitize(doc.get("filename", ""))
+        if not isinstance(filename, str):
+            filename = str(filename)
+
         # content_type may live at the top-level (legacy) or inside metadata
         meta = doc.get("metadata") or {}
-        content_type = doc.get("contentType") or meta.get("contentType")
+        content_type = sanitize(doc.get("contentType") or meta.get("contentType"))
         if not content_type:
-            content_type = detect_content_type(doc.get("filename", ""))
+            content_type = detect_content_type(filename)
+        if not isinstance(content_type, str):
+            content_type = str(content_type)
+
+        # Sanitize metadata to ensure all values are JSON-serializable
+        raw_metadata = doc.get("metadata")
+        safe_metadata = sanitize(raw_metadata) if raw_metadata else raw_metadata
+
         return FileInfo(
             id=str(doc["_id"]),
-            filename=doc.get("filename", ""),
+            filename=filename,
             length=doc.get("length", 0),
             content_type=content_type,
             upload_date=doc.get("uploadDate", datetime.now(timezone.utc)),
-            metadata=doc.get("metadata"),
+            metadata=safe_metadata,
             chunk_size=doc.get("chunkSize", 0),
         )
 

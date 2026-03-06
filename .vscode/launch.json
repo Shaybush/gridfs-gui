@@ -47,12 +47,75 @@
       "cwd": "${workspaceFolder}/apps/backend/",
       // "runtimeArgs": ["--watch"],
       "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/nodemon",
-      "runtimeArgs": ["--config", "${workspaceFolder}/apps/backend/nodemon.json"], // <-- flags to add to the runtimeExecutable
+      "runtimeArgs": [
+        "--config",
+        "${workspaceFolder}/apps/backend/nodemon.json"
+      ], // <-- flags to add to the runtimeExecutable
       "program": "src/index.ts",
       "restart": true, // Try to reconnect to a program if we lose connection. If set to `true`, we'll try once every second, forever.
       "outputCapture": "std", // This is to be able to also capture logger outputs
       "sourceMaps": true,
       "env": { "ENV_FILE": "development" }
+    },
+    // -----------
+    // Python FastAPI Server (debug)
+    // -----------
+    {
+      "name": "Debug FastAPI Server",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--port", "8000"],
+      "cwd": "${workspaceFolder}/server",
+      "python": "${workspaceFolder}/server/.venv/bin/python",
+      "envFile": "${workspaceFolder}/server/.env",
+      "jinja": true
+    },
+    // -----------
+    // Python FastAPI Server (uv + fish)
+    // -----------
+    {
+      "name": "Debug FastAPI Server (uv + fish)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["main:app", "--reload", "--port", "8000"],
+      "console": "internalConsole",
+      "cwd": "${workspaceFolder}/server",
+      "python": "${workspaceFolder}/server/.venv/bin/python3",
+      "envFile": "${workspaceFolder}/server/.env",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/server",
+        "DEBUG": "false"
+      },
+      "jinja": true,
+      "justMyCode": false,
+      "autoReload": {
+        "enable": true
+      }
+    },
+    // -----------
+    // Python Flask server fish uv
+    // -----------
+    {
+      "name": "Debug Flask App (uv + fish - Internal Console)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/server/app.py",
+      "console": "internalConsole",
+      "cwd": "${workspaceFolder}/server",
+      "env": {
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1",
+        "FLASK_APP": "app.py",
+        "PYTHONPATH": "${workspaceFolder}/server"
+      },
+      "args": [],
+      "justMyCode": false,
+      "python": "${workspaceFolder}/server/.venv/bin/python3",
+      "autoReload": {
+        "enable": true
+      }
     }
   ]
 }
