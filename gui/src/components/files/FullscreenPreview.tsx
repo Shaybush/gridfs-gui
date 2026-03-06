@@ -1,12 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Download, FileX, X } from 'lucide-react'
-import { resolveContentType } from '@src/common/utils/content-type'
+import { isOfficeDocument, resolveContentType } from '@src/common/utils/content-type'
 import { formatFileSize } from '@src/common/utils/format-file-size'
 import { Badge } from '@src/components/ui/badge'
 import { Button } from '@src/components/ui/button'
 import { Dialog, DialogContent } from '@src/components/ui/dialog'
 import { cn } from '@src/lib/utils'
 import type { FileInfo } from '@src/types/file'
+import { DocumentPreview } from './previews/DocumentPreview'
+import { HTMLPreview } from './previews/HTMLPreview'
+import { TextPreview } from './previews/TextPreview'
 
 interface FullscreenPreviewProps {
   open: boolean
@@ -24,61 +27,6 @@ interface FullscreenPreviewProps {
 }
 
 // ---------------------------------------------------------------------------
-// Fullscreen text preview — no max-height constraint, fills available space
-// ---------------------------------------------------------------------------
-function FullscreenTextPreview(props: { previewUrl: string }) {
-  const { previewUrl } = props
-  const [content, setContent] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasError, setHasError] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-    setHasError(false)
-    setContent(null)
-
-    async function loadContent() {
-      try {
-        const res = await fetch(previewUrl, { credentials: 'include' })
-        if (!res.ok) throw new Error('Failed to fetch')
-        const text = await res.text()
-        if (!cancelled) setContent(text)
-      } catch {
-        if (!cancelled) setHasError(true)
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-
-    loadContent()
-    return () => { cancelled = true }
-  }, [previewUrl])
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Loading preview...
-      </div>
-    )
-  }
-
-  if (hasError) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        Failed to load preview
-      </div>
-    )
-  }
-
-  return (
-    <pre className="h-full overflow-auto rounded-md bg-muted p-4 text-xs leading-relaxed whitespace-pre-wrap break-words">
-      <code>{content}</code>
-    </pre>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Preview content — renders based on resolved content type
 // ---------------------------------------------------------------------------
 function FullscreenPreviewContent(props: {
@@ -88,6 +36,38 @@ function FullscreenPreviewContent(props: {
 }) {
   const { fileInfo, previewUrl, downloadUrl } = props
   const contentType = resolveContentType(fileInfo.content_type, fileInfo.filename)
+
+  if (isOfficeDocument(contentType)) {
+    return (
+      <DocumentPreview
+        previewUrl={previewUrl}
+        filename={fileInfo.filename}
+        downloadUrl={downloadUrl}
+        fullscreen
+      />
+    )
+  }
+
+  if (contentType === 'text/csv') {
+    return (
+      <HTMLPreview
+        previewUrl={previewUrl}
+        filename={fileInfo.filename}
+        fullscreen
+        paginated
+      />
+    )
+  }
+
+  if (contentType === 'text/markdown') {
+    return (
+      <HTMLPreview
+        previewUrl={previewUrl}
+        filename={fileInfo.filename}
+        fullscreen
+      />
+    )
+  }
 
   if (contentType.startsWith('image/')) {
     return (
@@ -118,7 +98,7 @@ function FullscreenPreviewContent(props: {
   ) {
     return (
       <div className="h-full overflow-hidden p-4">
-        <FullscreenTextPreview previewUrl={previewUrl} />
+        <TextPreview previewUrl={previewUrl} fullscreen />
       </div>
     )
   }

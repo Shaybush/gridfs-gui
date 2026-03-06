@@ -1,5 +1,5 @@
 # Stage 1 -- Frontend build
-FROM node:20-alpine AS frontend-build
+FROM node:20-slim AS frontend-build
 
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
@@ -7,6 +7,7 @@ WORKDIR /app/gui
 
 COPY gui/package.json gui/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
+RUN pnpm add -D esbuild || true
 
 COPY gui/ ./
 
@@ -34,14 +35,31 @@ FROM python:3.12-slim AS runtime
 WORKDIR /app
 
 RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid appgroup --no-create-home --shell /bin/false appuser
+    useradd --uid 1001 --gid appgroup --create-home --home-dir /home/appuser --shell /bin/false appuser
+
+ENV PYTHONUNBUFFERED=1
+
+# Install LibreOffice headless for document-to-PDF conversion (before COPY for better layer caching)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libreoffice-core \
+        libreoffice-writer \
+        libreoffice-calc \
+        libreoffice-impress \
+        libreoffice-common \
+        fonts-liberation \
+        fonts-dejavu-core && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-build --chown=appuser:appgroup /app /app
 COPY --from=frontend-build --chown=appuser:appgroup /app/gui/dist /app/public
 
-ENV PYTHONUNBUFFERED=1
-
 RUN mkdir -p /app/data && chown appuser:appgroup /app/data
+
+# LibreOffice needs writable directories for its user profile and dconf cache
+RUN mkdir -p /tmp/libreoffice-profile /home/appuser/.cache/dconf && \
+    chown -R appuser:appgroup /home/appuser /tmp/libreoffice-profile
 
 USER appuser
 

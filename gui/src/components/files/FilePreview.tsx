@@ -1,71 +1,16 @@
-import { useEffect, useState } from 'react'
 import { Download, FileX, Maximize2 } from 'lucide-react'
-import { resolveContentType } from '@src/common/utils/content-type'
+import { isOfficeDocument, resolveContentType } from '@src/common/utils/content-type'
 import { Button } from '@src/components/ui/button'
-import { cn } from '@src/lib/utils'
 import type { FileInfo } from '@src/types/file'
+import { DocumentPreview } from './previews/DocumentPreview'
+import { HTMLPreview } from './previews/HTMLPreview'
+import { TextPreview } from './previews/TextPreview'
 
 interface FilePreviewProps {
   fileInfo: FileInfo
   previewUrl: string
   downloadUrl: string
   onExpandClick?: () => void
-}
-
-function TextPreview(props: { previewUrl: string; fullscreen?: boolean }) {
-  const { previewUrl, fullscreen } = props
-  const [content, setContent] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasError, setHasError] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-    setHasError(false)
-
-    async function loadContent() {
-      try {
-        const res = await fetch(previewUrl, { credentials: 'include' })
-        if (!res.ok) throw new Error('Failed to fetch')
-        const text = await res.text()
-        if (!cancelled) setContent(text)
-      } catch {
-        if (!cancelled) setHasError(true)
-      } finally {
-        if (!cancelled) setIsLoading(false)
-      }
-    }
-
-    loadContent()
-    return () => { cancelled = true }
-  }, [previewUrl])
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-        Loading preview...
-      </div>
-    )
-  }
-
-  if (hasError) {
-    return (
-      <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-        Failed to load preview
-      </div>
-    )
-  }
-
-  return (
-    <pre
-      className={cn(
-        'overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed whitespace-pre-wrap break-words',
-        fullscreen ? 'h-full' : 'max-h-80',
-      )}
-    >
-      <code>{content}</code>
-    </pre>
-  )
 }
 
 export function FilePreview(props: FilePreviewProps) {
@@ -84,6 +29,44 @@ export function FilePreview(props: FilePreviewProps) {
       <Maximize2 className="size-3.5" />
     </Button>
   ) : null
+
+  if (isOfficeDocument(contentType)) {
+    return (
+      <div className="group relative">
+        {expandButton}
+        <DocumentPreview
+          previewUrl={previewUrl}
+          filename={fileInfo.filename}
+          downloadUrl={downloadUrl}
+        />
+      </div>
+    )
+  }
+
+  if (contentType === 'text/csv') {
+    return (
+      <div className="group relative">
+        {expandButton}
+        <HTMLPreview
+          previewUrl={previewUrl}
+          filename={fileInfo.filename}
+          paginated
+        />
+      </div>
+    )
+  }
+
+  if (contentType === 'text/markdown') {
+    return (
+      <div className="group relative">
+        {expandButton}
+        <HTMLPreview
+          previewUrl={previewUrl}
+          filename={fileInfo.filename}
+        />
+      </div>
+    )
+  }
 
   if (contentType.startsWith('image/')) {
     return (

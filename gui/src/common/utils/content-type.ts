@@ -13,6 +13,16 @@ export const EXTENSION_CONTENT_TYPE_MAP: Record<string, string> = {
   '.tif': 'image/tiff',
   // PDF
   '.pdf': 'application/pdf',
+  // Office Documents
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.odt': 'application/vnd.oasis.opendocument.text',
+  '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+  '.odp': 'application/vnd.oasis.opendocument.presentation',
   // Text / Code
   '.txt': 'text/plain',
   '.md': 'text/markdown',
@@ -94,4 +104,29 @@ export function resolveContentType(contentType: string | null, filename: string)
   return raw && raw !== 'application/octet-stream'
     ? raw
     : getContentTypeFromFilename(filename)
+}
+
+const OFFICE_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+])
+
+export function isOfficeDocument(contentType: string): boolean {
+  return OFFICE_MIME_TYPES.has(contentType)
+}
+
+export function isDocumentPreviewable(contentType: string, filename: string): boolean {
+  const resolved = resolveContentType(contentType, filename)
+  return (
+    isOfficeDocument(resolved) ||
+    resolved === 'text/csv' ||
+    resolved === 'text/markdown'
+  )
 }

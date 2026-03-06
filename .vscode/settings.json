@@ -33,6 +33,7 @@
   "workbench.tree.stickyScrollMaxItemCount": 7, // <--- defaults to 7. It used to be 1 before version 1.86.
   "workbench.activityBar.iconClickBehavior": "focus",
   "workbench.editor.editorActionsLocation": "default",
+  "workbench.activityBar.orientation": "vertical",
   "explorer.compactFolders": false,
   // "workbench.list.horizontalScrolling": true,
   // "search.mode": "newEditor",

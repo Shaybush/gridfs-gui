@@ -50,4 +50,10 @@ projects:
                 value: "gridfs-gui"
               - key: DATA_DIR
                 value: "/app/data"
+              - key: PREVIEW_CACHE_MAX_MB
+                value: "200"
+              - key: PREVIEW_CACHE_TTL_SECONDS
+                value: "3600"
+              - key: PREVIEW_CONVERSION_TIMEOUT_SECONDS
+                value: "30"
               # Secrets (ENCRYPTION_KEY, CORS_ORIGINS) managed in gridfs_gui_env group on Render dashboard

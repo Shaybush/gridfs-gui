@@ -46,7 +46,8 @@ Auto-connects if not already connected. All require valid conn_id + db_name + bu
 - `POST /upload` - Multipart upload (field: `files`, optional `metadata` JSON string) -> `list[FileUploadResponse]` (201)
 - `GET /{file_id}` - File metadata -> `FileInfo`; 404 if not found
 - `GET /{file_id}/download` - Stream download (Content-Disposition: attachment) -> StreamingResponse; 404 if not found
-- `GET /{file_id}/preview` - Inline preview (Content-Disposition: inline, Accept-Ranges: bytes) -> StreamingResponse; supports HTTP Range requests (206 Partial Content) for video/audio seeking; 416 on bad range; 404 if not found
+- `GET /{file_id}/preview` - Inline preview with document conversion support -> Response; converts Office docs (DOCX, PPTX, XLSX, etc.) to PDF (cached via PreviewCache), CSV to paginated HTML, Markdown to HTML; native types (image, video, audio, text, PDF) stream directly with Range request support (206); query params: page (default 1, CSV only), rows_per_page (default 100, CSV only); CSV responses include X-Total-Pages header; 422 on conversion failure; 416 on bad range; 404 if not found
+- `GET /{file_id}/preview/info` - Preview metadata -> `PreviewInfoResponse`; returns previewable (bool), preview_type ("pdf"/"html"/"image"/"video"/"audio"/"text"/null), original_type (MIME), requires_conversion (bool for Office/CSV/Markdown); 404 if not found
 - `POST /{file_id}/copy` - Copy file to another bucket (body: `FileCopyMoveRequest`) -> `FileCopyMoveResponse` (201); streams chunk-by-chunk; 400 if same bucket or invalid ID; 404 if not found
 - `POST /{file_id}/move` - Move file to another bucket (body: `FileCopyMoveRequest`) -> `FileCopyMoveResponse`; copy + delete original; 400 if same bucket or invalid ID; 404 if not found
 - `PATCH /{file_id}` - Update file filename/metadata (body: `FileUpdateRequest`) -> `FileInfo`; 400 if neither field provided or invalid ID; 404 if not found
@@ -64,3 +65,4 @@ Auto-connects if not already connected. All require valid conn_id + db_name + bu
 - `BulkDeleteResponse`: deleted (int), errors (list[str])
 - `FileUpdateRequest`: filename? (str, min 1 char), metadata? (dict, replaces existing)
 - `BulkDownloadRequest`: file_ids (list[str], min 1)
+- `PreviewInfoResponse`: previewable (bool), preview_type (str|null), original_type (str), requires_conversion (bool)

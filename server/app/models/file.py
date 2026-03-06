@@ -88,3 +88,18 @@ class FileCopyMoveResponse(BaseModel):
     filename: str
     target_bucket: str
     length: int = Field(..., ge=0, description="File size in bytes")
+
+
+class PreviewInfoResponse(BaseModel):
+    """Preview metadata for a file — indicates how (or if) it can be previewed."""
+
+    previewable: bool = Field(..., description="Whether the file can be previewed")
+    preview_type: Optional[str] = Field(
+        default=None,
+        description='Preview output type: "pdf", "html", "image", "video", "audio", or "text"',
+    )
+    original_type: str = Field(..., description="Original MIME type of the file")
+    requires_conversion: bool = Field(
+        default=False,
+        description="Whether server-side conversion is needed (Office, CSV, Markdown)",
+    )
