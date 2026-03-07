@@ -2,13 +2,10 @@
 FROM python:3.12-slim AS build
 WORKDIR /app
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN uv sync --frozen --no-dev
 
 # === RUNNER ===
 FROM python:3.12-slim AS runner
@@ -34,6 +31,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+COPY --from=build /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=build /usr/local/bin /usr/local/bin
 COPY --from=build --chown=appuser:appgroup /app /app
 
 USER appuser
@@ -44,4 +43,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=10s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
