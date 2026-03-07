@@ -7,18 +7,18 @@ volumes:
   mongo-data:
 
 services:
-  gui:
-    build:
-      context: ./gui
-      dockerfile: Dockerfile
-    ports:
-      - "3000:80"
-    depends_on:
-      server:
-        condition: service_healthy
-    networks:
-      - gridfs-net
-    restart: unless-stopped
+  # gui:
+  #   build:
+  #     context: ./gui
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "3000:80"
+  #   depends_on:
+  #     server:
+  #       condition: service_healthy
+  #   networks:
+  #     - gridfs-net
+  #   restart: unless-stopped
 
   server:
     build:
@@ -27,31 +27,33 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - DATA_DIR=/app/data
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017}
     volumes:
       - server-data:/app/data
-    depends_on:
-      mongo:
-        condition: service_started
     networks:
       - gridfs-net
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
 
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - gridfs-net
-    restart: unless-stopped
+  # mongo:
+  #   image: mongo:7
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo-data:/data/db
+  #   networks:
+  #     - gridfs-net
+  #   restart: unless-stopped
